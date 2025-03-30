@@ -47,7 +47,9 @@ def run_bot():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_instagram_video))
-    loop = asyncio.get_event_loop()
+
+    loop = asyncio.new_event_loop()  # ✅ Fix: Create a new event loop
+    asyncio.set_event_loop(loop)
     loop.run_until_complete(app.run_polling())
 
 # Web route to make Render detect a web service
