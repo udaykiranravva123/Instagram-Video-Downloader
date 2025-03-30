@@ -2,6 +2,7 @@ import os
 import asyncio
 from fastapi import FastAPI
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import requests
 import instaloader
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -22,13 +23,18 @@ async def download_instagram_video(update, context):
         shortcode = url.split("/")[-2]  # Extract shortcode from URL
         post = instaloader.Post.from_shortcode(loader.context, shortcode)
 
-        for item in post.get_sidecar_nodes():
-            if item.is_video:
-                video_url = item.video_url
-                await update.message.reply_video(video=video_url)
-                return
-        
-        await update.message.reply_text("No video found in the provided link.")
+        if not post.is_video:
+            await update.message.reply_text("This post does not contain a video.")
+            return
+
+        video_url = post.video_url  # Get the direct video URL
+        response = requests.get(video_url, stream=True)
+
+        if response.status_code == 200:
+            await update.message.reply_video(video=response.content)
+        else:
+            await update.message.reply_text("Failed to download the video.")
+
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
