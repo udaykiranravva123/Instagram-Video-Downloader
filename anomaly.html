@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IT Anomaly Explanation Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #F1F5F9;
+      color: #1E293B;
+      min-height: 100vh;
+    }
+
+    /* ── Top nav ── */
+    .navbar {
+      background: #1A2E4A;
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .navbar-left { display: flex; align-items: center; gap: 12px; }
+    .navbar-title { color: #fff; font-size: 16px; font-weight: 600; }
+    .badge {
+      font-size: 11px; font-weight: 600; padding: 3px 10px;
+      border-radius: 20px; letter-spacing: 0.03em;
+    }
+    .badge-tcs  { background: #0D9488; color: #fff; }
+    .badge-gpt  { background: #10a37f; color: #fff; }
+    .navbar-time { color: #94A3B8; font-size: 12px; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem; }
+
+    /* ── Metric cards ── */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 1.25rem;
+    }
+    .metric {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 18px;
+      border: 1px solid #E2E8F0;
+    }
+    .metric-label { font-size: 12px; color: #64748B; margin-bottom: 4px; }
+    .metric-val   { font-size: 26px; font-weight: 700; }
+    .metric-val.red    { color: #DC2626; }
+    .metric-val.amber  { color: #D97706; }
+    .metric-val.green  { color: #059669; }
+    .metric-val.teal   { color: #0D9488; }
+
+    /* ── Sparkline charts ── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 1.25rem;
+    }
+    .chart-card {
+      background: #fff;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .chart-label { font-size: 12px; color: #64748B; margin-bottom: 10px; }
+    .spark { display: flex; align-items: flex-end; gap: 3px; height: 52px; }
+    .spark-bar { flex: 1; border-radius: 2px 2px 0 0; min-height: 3px; }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex; gap: 10px; margin-bottom: 1rem;
+      align-items: center; flex-wrap: wrap;
+    }
+    .filters label { font-size: 13px; color: #64748B; font-weight: 500; }
+    .filters select {
+      font-size: 13px; padding: 6px 12px;
+      border: 1px solid #CBD5E1; border-radius: 8px;
+      background: #fff; color: #1E293B; cursor: pointer;
+    }
+    .filters select:focus { outline: none; border-color: #0D9488; }
+
+    /* ── Section title ── */
+    .section-title {
+      font-size: 11px; font-weight: 700; color: #94A3B8;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    /* ── Anomaly cards ── */
+    .anomaly-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+    .acard {
+      background: #fff;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .acard:hover { border-color: #94A3B8; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .acard.selected { border: 2px solid #0D9488; background: #F0FDF9; }
+
+    .acard-top {
+      display: flex; align-items: center;
+      gap: 10px; margin-bottom: 8px;
+    }
+    .sev {
+      font-size: 11px; font-weight: 700; padding: 3px 9px;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .sev.critical { background: #FEE2E2; color: #991B1B; }
+    .sev.high     { background: #FEF3C7; color: #92400E; }
+    .sev.medium   { background: #DBEAFE; color: #1E40AF; }
+
+    .acard-title { font-size: 14px; font-weight: 600; color: #1E293B; flex: 1; }
+    .acard-time  { font-size: 12px; color: #94A3B8; }
+
+    .acard-bottom {
+      display: flex; align-items: center;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .acard-metric { font-size: 12px; color: #64748B; }
+    .acard-metric b { color: #1E293B; }
+
+    .explain-btn {
+      margin-left: auto;
+      font-size: 12px; font-weight: 600;
+      padding: 5px 14px;
+      background: #0D9488; color: #fff;
+      border: none; border-radius: 7px;
+      cursor: pointer; display: flex; align-items: center; gap: 5px;
+      transition: background 0.15s;
+    }
+    .explain-btn:hover { background: #0F766E; }
+
+    /* ── Explanation box ── */
+    .explain-box {
+      background: #fff;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .explain-header {
+      display: flex; align-items: center;
+      gap: 8px; margin-bottom: 14px;
+    }
+    .explain-header-title {
+      font-size: 14px; font-weight: 700; color: #1E293B;
+    }
+    .gpt-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #10a37f; display: inline-block;
+    }
+
+    .apikey-row {
+      display: flex; gap: 8px; margin-bottom: 14px;
+      align-items: center; flex-wrap: wrap;
+    }
+    .apikey-row input {
+      flex: 1; min-width: 200px;
+      font-size: 13px; padding: 8px 12px;
+      border: 1px solid #CBD5E1; border-radius: 8px;
+      background: #F8FAFC; color: #1E293B;
+    }
+    .apikey-row input:focus { outline: none; border-color: #0D9488; background: #fff; }
+    .save-btn {
+      font-size: 13px; font-weight: 600;
+      padding: 8px 16px;
+      background: #1A2E4A; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .save-btn:hover { background: #243C5E; }
+
+    .explain-body {
+      font-size: 14px; color: #334155;
+      line-height: 1.75; min-height: 70px;
+      background: #F8FAFC; border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .explain-body.placeholder { color: #94A3B8; font-style: italic; }
+    .explain-body.loading     { color: #94A3B8; font-style: italic; }
+
+    .thinking {
+      display: inline-flex; gap: 4px; align-items: center;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #0D9488; animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+    /* ── Feedback ── */
+    .feedback {
+      display: flex; align-items: center;
+      gap: 8px; margin-top: 12px;
+    }
+    .feedback-label { font-size: 12px; color: #64748B; }
+    .fbtn {
+      font-size: 12px; padding: 5px 12px;
+      border: 1px solid #CBD5E1; border-radius: 7px;
+      background: #fff; color: #64748B;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .fbtn:hover { border-color: #94A3B8; color: #1E293B; }
+    .fbtn.yes { background: #D1FAE5; border-color: #059669; color: #065F46; }
+    .fbtn.no  { background: #FEE2E2; border-color: #DC2626; color: #991B1B; }
+
+    @media (max-width: 700px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .chart-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-left">
+    <span class="navbar-title">Anomaly Dashboard</span>
+    <span class="badge badge-tcs">TCS · AI Friday S2</span>
+    <span class="badge badge-gpt">GPT-4o</span>
+  </div>
+  <span class="navbar-time" id="last-update">Last updated: just now</span>
+</nav>
+
+<div class="container">
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Total anomalies</div><div class="metric-val">12</div></div>
+    <div class="metric"><div class="metric-label">Critical</div><div class="metric-val red">3</div></div>
+    <div class="metric"><div class="metric-label">Avg MTTR (min)</div><div class="metric-val amber">42</div></div>
+    <div class="metric"><div class="metric-label">Explained</div><div class="metric-val teal">9 / 12</div></div>
+  </div>
+
+  <!-- Sparklines -->
+  <div class="chart-row">
+    <div class="chart-card">
+      <div class="chart-label">CPU % — last 12 intervals</div>
+      <div class="spark" id="cpu-spark"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-label">Error rate % — last 12 intervals</div>
+      <div class="spark" id="err-spark"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-label">Response time ms — last 12 intervals</div>
+      <div class="spark" id="rt-spark"></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <label>Severity:</label>
+    <select id="sev-filter" onchange="renderList()">
+      <option value="all">All</option>
+      <option value="critical">Critical</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+    </select>
+    <label>Service:</label>
+    <select id="svc-filter" onchange="renderList()">
+      <option value="all">All</option>
+      <option value="auth">Auth Service</option>
+      <option value="payment">Payment API</option>
+      <option value="db">Database</option>
+      <option value="cache">Cache Layer</option>
+    </select>
+  </div>
+
+  <!-- Anomaly list -->
+  <div class="section-title">Detected anomalies</div>
+  <div class="anomaly-list" id="anomaly-list"></div>
+
+  <!-- Explanation box -->
+  <div class="explain-box">
+    <div class="explain-header">
+      <span class="gpt-dot"></span>
+      <span class="explain-header-title">GPT-4o Explanation</span>
+    </div>
+
+    <div class="apikey-row">
+      <input type="password" id="apikey" placeholder="Paste your OpenAI API key (sk-…)" />
+      <button class="save-btn" onclick="saveKey()">Save key</button>
+    </div>
+
+    <div class="explain-body placeholder" id="explain-body">
+      Select an anomaly above and click "Explain" to get a GPT-4o analysis.
+    </div>
+
+    <div class="feedback" id="feedback-row" style="display:none">
+      <span class="feedback-label">Was this helpful?</span>
+      <button class="fbtn" id="fb-yes" onclick="setFeedback('yes')">👍 Yes</button>
+      <button class="fbtn" id="fb-no"  onclick="setFeedback('no')">👎 No</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const anomalies = [
+    { id:1, title:"CPU spike — Auth Service",            sev:"critical", svc:"auth",    time:"10:42 AM", cpu:98, mem:72, rt:2400, err:12 },
+    { id:2, title:"High error rate — Payment API",       sev:"critical", svc:"payment", time:"10:38 AM", cpu:61, mem:55, rt:800,  err:34 },
+    { id:3, title:"Memory pressure — Database",          sev:"critical", svc:"db",      time:"10:31 AM", cpu:44, mem:93, rt:1800, err:5  },
+    { id:4, title:"Response latency spike — Payment API",sev:"high",     svc:"payment", time:"10:25 AM", cpu:55, mem:60, rt:3200, err:8  },
+    { id:5, title:"Cache miss rate elevated — Cache",    sev:"high",     svc:"cache",   time:"10:18 AM", cpu:30, mem:40, rt:620,  err:3  },
+    { id:6, title:"Intermittent timeouts — Auth Service",sev:"medium",   svc:"auth",    time:"10:05 AM", cpu:65, mem:58, rt:1100, err:6  },
+    { id:7, title:"Elevated DB connections — Database",  sev:"medium",   svc:"db",      time:"09:52 AM", cpu:38, mem:70, rt:950,  err:2  },
+  ];
+
+  let selectedId = null;
+  let apiKey = "";
+
+  function saveKey() {
+    apiKey = document.getElementById("apikey").value.trim();
+    if (apiKey) {
+      document.getElementById("apikey").placeholder = "✓ API key saved";
+      document.getElementById("apikey").value = "";
+    }
+  }
+
+  function renderList() {
+    const sevF = document.getElementById("sev-filter").value;
+    const svcF = document.getElementById("svc-filter").value;
+    const list = document.getElementById("anomaly-list");
+    list.innerHTML = "";
+
+    anomalies
+      .filter(a => (sevF === "all" || a.sev === sevF) && (svcF === "all" || a.svc === svcF))
+      .forEach(a => {
+        const div = document.createElement("div");
+        div.className = "acard" + (selectedId === a.id ? " selected" : "");
+        div.innerHTML = `
+          <div class="acard-top">
+            <span class="sev ${a.sev}">${a.sev.charAt(0).toUpperCase() + a.sev.slice(1)}</span>
+            <span class="acard-title">${a.title}</span>
+            <span class="acard-time">${a.time}</span>
+          </div>
+          <div class="acard-bottom">
+            <span class="acard-metric">CPU: <b>${a.cpu}%</b></span>
+            <span class="acard-metric">Memory: <b>${a.mem}%</b></span>
+            <span class="acard-metric">Response: <b>${a.rt}ms</b></span>
+            <span class="acard-metric">Errors: <b>${a.err}%</b></span>
+            <button class="explain-btn" onclick="explain(${a.id}, event)">✦ Explain</button>
+          </div>`;
+        div.onclick = (e) => {
+          if (!e.target.closest(".explain-btn")) { selectedId = a.id; renderList(); }
+        };
+        list.appendChild(div);
+      });
+  }
+
+  async function explain(id, e) {
+    e.stopPropagation();
+    const a = anomalies.find(x => x.id === id);
+    selectedId = id;
+    renderList();
+
+    const box = document.getElementById("explain-body");
+    const fbRow = document.getElementById("feedback-row");
+    fbRow.style.display = "none";
+    document.getElementById("fb-yes").className = "fbtn";
+    document.getElementById("fb-no").className = "fbtn";
+
+    if (!apiKey) {
+      box.className = "explain-body";
+      box.textContent = "⚠️  Please enter your OpenAI API key above first.";
+      return;
+    }
+
+    box.className = "explain-body loading";
+    box.innerHTML = `Asking GPT-4o… <span class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
+
+    const prompt = `You are a senior IT operations engineer. A performance anomaly has been detected. Explain in 3-4 clear sentences: (1) what likely caused it, (2) what the impact is on the service, and (3) what the engineer should check or do first. Keep it simple and actionable — no jargon.\n\nAnomaly: ${a.title}\nMetrics: CPU ${a.cpu}%, Memory ${a.mem}%, Response time ${a.rt}ms, Error rate ${a.err}%\nService: ${a.svc}`;
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          max_tokens: 250,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        box.className = "explain-body";
+        box.textContent = "Error from OpenAI: " + data.error.message;
+        return;
+      }
+
+      box.className = "explain-body";
+      box.textContent = data.choices[0].message.content;
+      fbRow.style.display = "flex";
+
+    } catch (err) {
+      box.className = "explain-body";
+      box.textContent = "Could not reach OpenAI API. Check your API key and internet connection.";
+    }
+  }
+
+  function setFeedback(val) {
+    document.getElementById("fb-yes").className = "fbtn" + (val === "yes" ? " yes" : "");
+    document.getElementById("fb-no").className  = "fbtn" + (val === "no"  ? " no"  : "");
+  }
+
+  function makeSparkline(id, values, normalColor, dangerColor, threshold) {
+    const max = Math.max(...values);
+    const el = document.getElementById(id);
+    el.innerHTML = values.map(v => {
+      const h = Math.max(3, Math.round((v / max) * 52));
+      const c = v >= threshold ? dangerColor : normalColor;
+      return `<div class="spark-bar" style="height:${h}px;background:${c}"></div>`;
+    }).join("");
+  }
+
+  makeSparkline("cpu-spark", [42,38,45,50,55,60,72,68,75,88,95,98], "#1D9E75", "#DC2626", 80);
+  makeSparkline("err-spark", [2,1,2,3,2,4,6,8,12,20,30,34],         "#378ADD", "#DC2626", 15);
+  makeSparkline("rt-spark",  [320,310,340,380,420,500,680,900,1400,2100,2800,3200], "#D97706", "#DC2626", 2000);
+
+  // Live clock
+  setInterval(() => {
+    document.getElementById("last-update").textContent =
+      "Last updated: " + new Date().toLocaleTimeString();
+  }, 10000);
+
+  renderList();
+</script>
+</body>
+</html>
